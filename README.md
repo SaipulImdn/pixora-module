@@ -37,6 +37,23 @@ log := logger.New(cfg.LogLevel, logger.Config{Dir: "logs"})
 defer log.Sync()
 ```
 
+### `metrics`
+
+The standard HTTP-request Prometheus metric set: request count, latency,
+response code, and active-connection gauge. Metric *names* stay per-service
+(via `Config.Prefix`) since every service is scraped into the same
+Prometheus/Grafana stack and existing dashboards key off names like
+`gateway_http_requests_total` — only the construction code is shared, not the
+metric identity.
+
+```go
+httpMetrics := metrics.NewHTTP(metrics.Config{Prefix: "pixora"}) // -> pixora_http_requests_total, etc.
+```
+
+Domain-specific metrics (e.g. `phantom_files_indexed_total`,
+`rubick_password_resets_total`) stay in each service — only the generic HTTP
+set belongs here.
+
 ### `accesslog`
 
 The shared HTTP access-log middleware. Wrap it as close to the outermost
@@ -50,6 +67,10 @@ mw := accesslog.Middleware(accesslog.Config{
     UserID: func(ctx context.Context) string {
         return myauth.GetUserID(ctx) // your existing auth context helper
     },
+    Metrics: httpMetrics, // optional — records the metrics package's standard
+                          // set automatically, path pre-normalized via
+                          // metrics.NormalizePath so IDs don't blow up label
+                          // cardinality
 })
 handler = mw(handler)
 ```

@@ -14,11 +14,13 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/SaipulImdn/pixora-module/metrics"
 	"github.com/SaipulImdn/pixora-module/reqid"
 )
 
@@ -40,6 +42,12 @@ type Config struct {
 	// "user_id" log field, e.g. after an auth middleware has already run and
 	// populated the context. Optional — if nil, "user_id" logs as "".
 	UserID func(ctx context.Context) string
+	// Metrics, if set, records the standard HTTP metric set (see the metrics
+	// package) for every non-skipped request — request count, duration,
+	// response code, and active-connection gauge — so services don't need to
+	// hand-roll this recording themselves. Optional — if nil, no metrics are
+	// recorded (a service can still record its own separately).
+	Metrics *metrics.HTTP
 }
 
 func (c Config) skipPaths() map[string]struct{} {
@@ -75,6 +83,11 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 
 			clientIP := extractClientIP(r)
 
+			if cfg.Metrics != nil {
+				cfg.Metrics.IncActive()
+				defer cfg.Metrics.DecActive()
+			}
+
 			start := time.Now()
 			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK, body: make([]byte, 0, maxCaptureSize)}
 
@@ -92,6 +105,10 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 			var userID string
 			if cfg.UserID != nil {
 				userID = cfg.UserID(r.Context())
+			}
+
+			if cfg.Metrics != nil {
+				cfg.Metrics.Observe(r.Method, metrics.NormalizePath(r.URL.Path), strconv.Itoa(sw.status), responseCode, duration)
 			}
 
 			fields := []zap.Field{

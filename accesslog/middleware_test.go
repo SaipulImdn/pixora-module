@@ -5,9 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 
+	"github.com/SaipulImdn/pixora-module/metrics"
 	"github.com/SaipulImdn/pixora-module/reqid"
 )
 
@@ -88,6 +91,29 @@ func TestMiddleware_LogsErrorLevelOn5xx(t *testing.T) {
 
 	if got := logs.All()[0].Level; got != zap.ErrorLevel {
 		t.Errorf("log level = %v, want error for a 5xx response", got)
+	}
+}
+
+func TestMiddleware_RecordsMetricsWhenConfigured(t *testing.T) {
+	core, _ := observer.New(zap.DebugLevel)
+	httpMetrics := metrics.NewHTTP(metrics.Config{Prefix: "mwtest", Registerer: prometheus.NewRegistry()})
+	mw := Middleware(Config{ServiceName: "test-svc", Logger: zap.New(core), Metrics: httpMetrics})
+
+	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"responseCode":"00","responseDesc":"ok","responseData":null}`))
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/foo/123", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	m := &dto.Metric{}
+	// Path must have been normalized (123 -> :id) before being used as a label.
+	if err := httpMetrics.RequestsTotal.WithLabelValues("GET", "/api/v1/foo/:id", "200", "00").Write(m); err != nil {
+		t.Fatalf("write metric: %v", err)
+	}
+	if got := m.Counter.GetValue(); got != 1 {
+		t.Errorf("RequestsTotal for normalized path = %v, want 1", got)
 	}
 }
 
