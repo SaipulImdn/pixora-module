@@ -82,6 +82,7 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 			r = r.WithContext(ctx)
 
 			clientIP := extractClientIP(r)
+			reqBody, reqBodySize := CaptureRequestBody(r, 0)
 
 			if cfg.Metrics != nil {
 				cfg.Metrics.IncActive()
@@ -120,6 +121,8 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 				zap.String("client_ip", clientIP),
 				zap.String("user_id", userID),
 				zap.String("request.content_type", r.Header.Get("Content-Type")),
+				zap.String("request.body", reqBody),
+				zap.Int64("request.body_size", reqBodySize),
 				zap.String("response.code", responseCode),
 				zap.String("response.desc", responseDesc),
 				zap.String("response.data", responseData),
