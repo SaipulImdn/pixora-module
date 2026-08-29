@@ -15,7 +15,9 @@ const DefaultMaxRequestBody = 4096
 
 // sensitiveFields matches common credential-carrying JSON keys so
 // CaptureRequestBody never writes a password/token/etc. to disk or Loki.
-var sensitiveFields = regexp.MustCompile(`(?i)"(password|token|secret|otp|pin|apiKey|api_key|accessToken|refreshToken)"\s*:\s*"[^"]*"`)
+// `_?` between compound words matches both camelCase and snake_case payloads
+// (e.g. accessToken and access_token) since services vary in convention.
+var sensitiveFields = regexp.MustCompile(`(?i)"(password|token|secret|otp|pin|id_?token|api_?key|access_?token|refresh_?token)"\s*:\s*"[^"]*"`)
 
 // CaptureRequestBody reads a request's JSON body for access-log purposes and
 // restores r.Body so the real handler still sees it unchanged. It never

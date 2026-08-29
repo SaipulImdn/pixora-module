@@ -50,6 +50,23 @@ func TestCaptureRequestBody_RedactsSensitiveFields(t *testing.T) {
 	}
 }
 
+func TestCaptureRequestBody_RedactsSnakeCaseFields(t *testing.T) {
+	body := `{"email":"a@b.com","access_token":"secret-at","refresh_token":"secret-rt","api_key":"secret-ak"}`
+	r := newReq(t, "application/json", body, int64(len(body)))
+
+	got, _ := CaptureRequestBody(r, 0)
+	for _, leaked := range []string{"secret-at", "secret-rt", "secret-ak"} {
+		if strings.Contains(got, leaked) {
+			t.Errorf("body = %q, sensitive value %q leaked", got, leaked)
+		}
+	}
+	for _, field := range []string{"access_token", "refresh_token", "api_key"} {
+		if !strings.Contains(got, `"`+field+`":"***"`) {
+			t.Errorf("body = %q, want redacted %q field", got, field)
+		}
+	}
+}
+
 func TestCaptureRequestBody_Multipart_NeverBuffered(t *testing.T) {
 	body := "--boundary\r\nfake file bytes\r\n--boundary--"
 	r := newReq(t, "multipart/form-data; boundary=boundary", body, int64(len(body)))

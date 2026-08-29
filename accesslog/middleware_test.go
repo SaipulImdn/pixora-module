@@ -100,7 +100,7 @@ func TestMiddleware_RecordsMetricsWhenConfigured(t *testing.T) {
 	mw := Middleware(Config{ServiceName: "test-svc", Logger: zap.New(core), Metrics: httpMetrics})
 
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{"responseCode":"00","responseDesc":"ok","responseData":null}`))
+		w.Write([]byte(`{"response_code":"00","response_desc":"ok","response_data":null}`))
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/foo/123", nil)
@@ -118,14 +118,14 @@ func TestMiddleware_RecordsMetricsWhenConfigured(t *testing.T) {
 }
 
 func TestExtractResponseEnvelope(t *testing.T) {
-	body := []byte(`{"responseCode":"00","responseDesc":"success","responseData":{"id":1}}`)
-	if got := extractStringField(body, "responseCode"); got != "00" {
-		t.Errorf("responseCode = %q, want 00", got)
+	body := []byte(`{"response_code":"00","response_desc":"success","response_data":{"id":1}}`)
+	if got := extractStringField(body, "response_code"); got != "00" {
+		t.Errorf("response_code = %q, want 00", got)
 	}
-	if got := extractStringField(body, "responseDesc"); got != "success" {
-		t.Errorf("responseDesc = %q, want success", got)
+	if got := extractStringField(body, "response_desc"); got != "success" {
+		t.Errorf("response_desc = %q, want success", got)
 	}
-	if got := extractResponseField(body, "responseData"); got != `{"id":1}` {
-		t.Errorf("responseData = %q, want {\"id\":1}", got)
+	if got := extractResponseField(body, "response_data"); got != `{"id":1}` {
+		t.Errorf("response_data = %q, want {\"id\":1}", got)
 	}
 }

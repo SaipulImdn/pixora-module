@@ -5,7 +5,7 @@
 //     header, so callers can propagate it to their own outbound calls;
 //   - a single structured log-field set across services, so a log shipper or
 //     a human grepping logs doesn't need per-service parsing rules;
-//   - extracting the {responseCode, responseDesc, responseData} envelope
+//   - extracting the {response_code, response_desc, response_data} envelope
 //     every Pixora service wraps its responses in, without re-implementing a
 //     JSON scanner in each repo.
 package accesslog
@@ -96,9 +96,9 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 
 			duration := time.Since(start)
 
-			responseCode := extractStringField(sw.body, "responseCode")
-			responseDesc := extractStringField(sw.body, "responseDesc")
-			responseData := extractResponseField(sw.body, "responseData")
+			responseCode := extractStringField(sw.body, "response_code")
+			responseDesc := extractStringField(sw.body, "response_desc")
+			responseData := extractResponseField(sw.body, "response_data")
 			if len(responseData) > maxResponseDataSize {
 				responseData = responseData[:maxResponseDataSize] + "...[truncated]"
 			}
